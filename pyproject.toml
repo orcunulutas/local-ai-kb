@@ -15,6 +15,9 @@ dependencies = [
     "pyyaml>=6.0.1",
 ]
 
+[project.scripts]
+aikb = "aikb.cli:main"
+
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0",

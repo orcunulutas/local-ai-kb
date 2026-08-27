@@ -1,9 +1,9 @@
 # local-ai-kb
 
 `local-ai-kb` is a local-first knowledge ingestion system organized as a
-modular monolith. This repository currently contains the architecture,
-contracts, configuration example, and package skeleton only. It deliberately
-does **not** connect to Exchange, Ollama, QMD, or any other external service.
+modular monolith. Its first usable pipeline incrementally synchronizes Exchange
+Sticky Notes, enriches them with local Ollama, publishes deterministic
+Markdown, and refreshes a QMD collection.
 
 The stable flow is:
 
@@ -21,20 +21,21 @@ renderers, enrichment providers, or sinks. Processors operate only on domain
 objects and cannot know about Exchange or QMD. QMD belongs exclusively behind
 the `KnowledgeSink` boundary.
 
-## Repository status
+## MVP behavior
 
 Included now:
 
-- immutable foundational domain models;
-- structural Python protocols for extension points;
-- simple internal registries for built-in implementations;
-- namespace skeletons for sources, processors, enrichments, renderers, sinks,
-  and application orchestration;
-- unit tests for contract and registry behavior.
+- EWS `SyncFolderItems` incremental synchronization and full-item fetching;
+- stable logical identity using `PidTagSearchKey`, including move-out and
+  move-back handling when EWS changes the physical `ItemId`;
+- durable SQLite checkpoints, locator mappings, and publication records;
+- local Ollama JSON enrichment;
+- atomic, deterministic Markdown publication under `published/`;
+- QMD collection registration and incremental index refresh;
+- offline integration coverage for add, edit, unpublish, and republish.
 
-Deferred intentionally: Exchange/EWS connectivity and authentication, Notes
-and mail synchronization, Ollama calls, QMD execution, systemd integration,
-dynamic plugins, web APIs, and UI.
+Mail ingestion, web UI, microservices, dynamic plugins, and Docker packaging
+remain intentionally out of scope.
 
 ## Development
 
@@ -47,9 +48,18 @@ pip install -e '.[dev]'
 pytest
 ```
 
-Copy `config.example.yaml` to a locally ignored configuration file when
-implementation begins. Never commit credentials.
+Copy `config.example.yaml` to `config.yaml`, set the configured Exchange
+password environment variable, ensure Ollama and QMD are installed locally,
+then run:
+
+```bash
+aikb sync
+# or without installing the console script:
+python -m aikb sync
+```
+
+The configuration file is resolved relative to its own directory. Never put
+credentials in it; only the environment variable name is configured.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for dependency rules and
 [PLAN.md](PLAN.md) for incremental delivery stages.
-

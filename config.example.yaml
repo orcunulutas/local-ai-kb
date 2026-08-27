@@ -1,7 +1,8 @@
 # This file documents the anticipated configuration shape. Components below
 # are not implemented by the foundation scaffold.
 application:
-  state_directory: ./var/state
+  state_database: ./var/state/aikb.db
+  published_directory: ./published
   log_level: INFO
 
 pipeline:
@@ -31,6 +32,8 @@ enrichments:
     base_url: http://127.0.0.1:11434
     model: example-model
     timeout_seconds: 30
+    # If true, publish original content when Ollama is temporarily unavailable.
+    optional: false
 
 sinks:
   qmd:

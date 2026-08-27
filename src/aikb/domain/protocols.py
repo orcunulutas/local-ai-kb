@@ -40,4 +40,3 @@ class KnowledgeSink(Protocol):
     """Persist or index a canonical knowledge document."""
 
     def write(self, document: KnowledgeDocument) -> None: ...
-

@@ -1,2 +1,1 @@
 """Knowledge document renderer implementations."""
-

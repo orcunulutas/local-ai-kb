@@ -20,8 +20,9 @@ def mock_config():
         auth_type="NTLM",
         service_endpoint="https://mail.example.com/EWS/Exchange.asmx",
         folder_root="tois",
-        folder_path="KB"
+        folder_path="KB",
     )
+
 
 class MockFolder:
     def __init__(self, name="Folder", children=None):
@@ -35,6 +36,7 @@ class MockFolder:
 
     def sync_items(self, sync_state=None):
         folder = self
+
         class MockSyncGenerator:
             def __iter__(self):
                 class MockItem:
@@ -49,21 +51,24 @@ class MockFolder:
 
         return MockSyncGenerator()
 
+
 class MockRoot:
     def __init__(self, tois_folder):
         self.tois = tois_folder
         self.children = [tois_folder]
 
+
 class MockAccount:
     def __init__(self):
         self.notes = MockFolder(name="Notes")
-        tois_folder = MockFolder(name="Top of Information Store", children=[
-            self.notes,
-            MockFolder(name="KB"),
-            MockFolder(name="Nested", children=[
-                MockFolder(name="Path")
-            ])
-        ])
+        tois_folder = MockFolder(
+            name="Top of Information Store",
+            children=[
+                self.notes,
+                MockFolder(name="KB"),
+                MockFolder(name="Nested", children=[MockFolder(name="Path")]),
+            ],
+        )
         self.root = MockRoot(tois_folder)
 
     def fetch(self, item_ids):
@@ -74,6 +79,7 @@ class MockAccount:
                 self.body = f"Body {id}"
 
         return [MockItem(id_val) for id_val, _ in item_ids]
+
 
 @patch("aikb.sources.exchange.client.Account")
 def test_client_connect_success(mock_account_cls, mock_config):
@@ -96,6 +102,7 @@ def test_client_connect_registers_search_key_on_message(
     assert PidTagSearchKey.property_tag == 0x300B
     assert PidTagSearchKey.property_type == "Binary"
 
+
 @patch("aikb.sources.exchange.client.Account")
 def test_client_connect_failure(mock_account_cls, mock_config):
     mock_account_cls.side_effect = Exception("Auth failed")
@@ -103,6 +110,7 @@ def test_client_connect_failure(mock_account_cls, mock_config):
 
     with pytest.raises(ExchangeClientError, match="Failed to connect"):
         client.connect()
+
 
 @patch("aikb.sources.exchange.client.Account")
 def test_get_target_folder_success_tois(mock_account_cls, mock_config):
@@ -113,6 +121,7 @@ def test_get_target_folder_success_tois(mock_account_cls, mock_config):
     folder = client.get_target_folder()
     assert folder.name == "KB"
 
+
 @patch("aikb.sources.exchange.client.Account")
 def test_get_target_folder_success_notes(mock_account_cls):
     config = ExchangeConfig(
@@ -121,7 +130,7 @@ def test_get_target_folder_success_notes(mock_account_cls):
         username="DOMAIN\\test",
         password="password123",
         folder_root="notes",
-        folder_path=""
+        folder_path="",
     )
     mock_account_cls.return_value = MockAccount()
     client = ExchangeClient(config)
@@ -129,6 +138,7 @@ def test_get_target_folder_success_notes(mock_account_cls):
 
     folder = client.get_target_folder()
     assert folder.name == "Notes"
+
 
 @patch("aikb.sources.exchange.client.Account")
 def test_get_target_folder_success_nested(mock_account_cls):
@@ -138,7 +148,7 @@ def test_get_target_folder_success_nested(mock_account_cls):
         username="DOMAIN\\test",
         password="password123",
         folder_root="tois",
-        folder_path="Nested/Path"
+        folder_path="Nested/Path",
     )
     mock_account_cls.return_value = MockAccount()
     client = ExchangeClient(config)
@@ -146,6 +156,7 @@ def test_get_target_folder_success_nested(mock_account_cls):
 
     folder = client.get_target_folder()
     assert folder.name == "Path"
+
 
 @patch("aikb.sources.exchange.client.Account")
 def test_get_target_folder_not_found(mock_account_cls, mock_config):
@@ -160,12 +171,14 @@ def test_get_target_folder_not_found(mock_account_cls, mock_config):
     with pytest.raises(ExchangeClientError, match="Folder path 'KB' not found"):
         client.get_target_folder()
 
+
 @patch("aikb.sources.exchange.client.Account")
 def test_enumerate_items(mock_account_cls, mock_config):
     client = ExchangeClient(mock_config)
     client.connect()
 
     folder = MockFolder()
+
     class MockItem:
         id = "1"
         changekey = "ck1"
@@ -185,6 +198,7 @@ def test_enumerate_items(mock_account_cls, mock_config):
     assert items[0]["subject"] == "Note 1"
     assert items[0]["body"] == "Body 1"
 
+
 @patch("aikb.sources.exchange.client.Account")
 def test_sync_items(mock_account_cls, mock_config):
     client = ExchangeClient(mock_config)
@@ -203,6 +217,7 @@ def test_sync_items(mock_account_cls, mock_config):
 
     assert result.changes[2].change_type == "delete"
     assert result.changes[2].item_id == "id3"
+
 
 @patch("aikb.sources.exchange.client.Account")
 def test_fetch_items(mock_account_cls, mock_config):

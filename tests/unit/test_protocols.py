@@ -43,4 +43,3 @@ def test_contracts_are_structural() -> None:
     assert isinstance(FakeEnrichment(), EnrichmentProvider)
     assert isinstance(FakeRenderer(), Renderer)
     assert isinstance(FakeSink(), KnowledgeSink)
-

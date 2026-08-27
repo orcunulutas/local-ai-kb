@@ -22,7 +22,6 @@ class PidTagSearchKey(ExtendedProperty):  # type: ignore[misc]
     property_type = "Binary"
 
 
-
 @dataclasses.dataclass(frozen=True)
 class ExchangeConfig:
     server: str | None
@@ -188,7 +187,8 @@ class ExchangeClient:
                         "changekey": getattr(item, "changekey", None),
                         "search_key": (
                             getattr(item, "search_key", b"").hex().upper()
-                            if getattr(item, "search_key", None) else None
+                            if getattr(item, "search_key", None)
+                            else None
                         ),
                         "subject": getattr(item, "subject", None),
                         # exchangelib Note class often uses text_body or body
@@ -269,7 +269,8 @@ class ExchangeClient:
                         "changekey": getattr(item, "changekey", None),
                         "search_key": (
                             getattr(item, "search_key", b"").hex().upper()
-                            if getattr(item, "search_key", None) else None
+                            if getattr(item, "search_key", None)
+                            else None
                         ),
                         "subject": getattr(item, "subject", None),
                         "body": getattr(item, "text_body", None)

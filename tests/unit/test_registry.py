@@ -20,4 +20,3 @@ def test_registry_rejects_duplicate_and_unknown_names() -> None:
         registry.register("fixture", dict)
     with pytest.raises(KeyError, match="unknown implementation"):
         registry.get("missing")
-

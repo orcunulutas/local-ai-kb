@@ -34,4 +34,3 @@ class Registry(Generic[T]):
 
     def __iter__(self) -> Iterator[str]:
         return iter(self.names())
-

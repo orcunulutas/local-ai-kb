@@ -14,4 +14,3 @@ PROCESSORS = Registry[Processor]()
 ENRICHMENT_PROVIDERS = Registry[EnrichmentProvider]()
 RENDERERS = Registry[Renderer]()
 KNOWLEDGE_SINKS = Registry[KnowledgeSink]()
-

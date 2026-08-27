@@ -14,6 +14,7 @@ spike = importlib.util.module_from_spec(spec)
 sys.modules["exchange_spike"] = spike
 spec.loader.exec_module(spike)
 
+
 @pytest.fixture
 def mock_config_file(tmp_path):
     config_path = tmp_path / "config.yaml"
@@ -29,13 +30,14 @@ def mock_config_file(tmp_path):
                 "folder": {
                     "root": "tois",
                     "path": "MyKB/SubKB",
-                }
+                },
             }
         }
     }
     with open(config_path, "w") as f:
         yaml.dump(config_data, f)
     return str(config_path)
+
 
 @patch.dict(os.environ, {"CUSTOM_PASSWORD_ENV": "secret123"}, clear=True)
 def test_spike_config_parsing(mock_config_file):
@@ -57,6 +59,7 @@ def test_spike_config_parsing(mock_config_file):
         assert config.folder_root == "tois"
         assert config.folder_path == "MyKB/SubKB"
 
+
 @patch.dict(os.environ, {"EXCHANGE_PASSWORD": "fallback123"}, clear=True)
 def test_spike_password_fallback(mock_config_file):
     # CUSTOM_PASSWORD_ENV is not set, it should fallback to EXCHANGE_PASSWORD
@@ -68,6 +71,7 @@ def test_spike_password_fallback(mock_config_file):
         config = mock_client_cls.call_args[0][0]
 
         assert config.password == "fallback123"
+
 
 @patch("getpass.getpass")
 @patch.dict(os.environ, {}, clear=True)
