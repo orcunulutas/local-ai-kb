@@ -158,7 +158,7 @@ def test_enumerate_items(mock_account_cls, mock_config):
         text_body = "Body 1"
         datetime_created = "2024-01-01"
         last_modified_time = "2024-01-02"
-        item_class = "IPM.Note"
+        item_class = "IPM.StickyNote"
 
     folder._items = [MockItem()]
 
