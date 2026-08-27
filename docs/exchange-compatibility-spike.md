@@ -1,12 +1,12 @@
 # Exchange Compatibility Spike
 
 ## Objective
-The objective of this spike is to validate connectivity and data access from a Linux environment to an on-premises Exchange mailbox through EWS (Exchange Web Services), specifically targeting the `Notes/AI-KB` directory.
+The objective of this spike is to validate connectivity and data access from a Linux environment to an on-premises Exchange mailbox through EWS (Exchange Web Services), specifically targeting a configurable folder path (defaulting to a `KB` directory sitting as a sibling to `Notes` under the `Top of Information Store` folder).
 
 ## Scope
 * Connecting to an on-premises Exchange server via EWS.
 * Authenticating securely (NTLM and Basic) without hardcoded credentials.
-* Discovering and accessing the `Notes/AI-KB` folder.
+* Discovering and accessing a configurable target folder underneath a configurable semantic root folder.
 * Enumerating Note items and retrieving diagnostic properties (Subject, Body, Creation/Modification Dates, Item ID, ChangeKey, Item Class).
 * Demonstrating stateful incremental synchronization capabilities via `SyncFolderItems`.
 * Persisting the opaque sync state in an ignored local file to test subsequent incremental syncs.
@@ -39,6 +39,9 @@ sources:
     # Supply secrets through the future secret provider/environment, not here.
     password_env: AIKB_EXCHANGE_PASSWORD
     checkpoint_key: exchange-notes
+    folder:
+      root: tois
+      path: KB
 ```
 
 **Note:** `endpoint` (mapped to `service_endpoint`) and `server` are alternatives for connection configuration. If both are specified, `endpoint` will take precedence in the spike configuration for determining the connection path.
@@ -53,7 +56,7 @@ First, set your password (or leave unset for an interactive prompt). The variabl
 export AIKB_EXCHANGE_PASSWORD="your_secure_password"
 ```
 
-To list all items in the `Notes/AI-KB` folder:
+To list all items in the configured target folder:
 ```bash
 python tools/exchange_spike.py list --config config.yaml
 ```
@@ -68,10 +71,10 @@ python tools/exchange_spike.py sync --config config.yaml
 Connects to the server, finds the folder, and lists diagnostic information for items.
 ```text
 Connecting to Exchange...
-Locating Notes/AI-KB folder...
-Found AI-KB folder. Enumerating items...
-
-Total items found: 3
+Locating tois/KB folder...
+resolved_folder_path: /root/Top of Information Store/KB
+folder_class: IPF.StickyNote
+total_count: 3
 
 Item
 ----
@@ -119,15 +122,22 @@ A two-step fetch strategy may be required for production:
 * The API structure of locating subfolders and accessing `folder.all()` maps cleanly to diagnostic dictionary properties.
 * `sync_items` correctly handles incremental states, sorting them into `create`, `update`, and `delete` buckets using `ChangeKey`.
 
+### Confirmed by Real Exchange Validation
+* EWS connectivity and authentication succeeded.
+* Distinguished `Notes` folder discovery succeeded.
+* The validated custom target folder was discovered directly under `Top of Information Store` (`tois`) and sits as a sibling of `Notes`. The target folder class was `IPF.StickyNote`.
+* The previous assumption that the target folder would be a child of `Notes` was disproved.
+* The target custom folder is successfully discovered even when empty.
+
 ### Still Requiring Real On-Prem Exchange Validation
-The following behavior has been designed around but requires validation against a real server:
-* Reliability of locating the `Notes` folder and its `AI-KB` child folder explicitly via EWS on this particular Exchange version.
+The following behavior has been designed around but requires validation against a real server during further incremental sync experiments:
 * Stability of `ItemId` values across edits.
 * Verification that `SyncFolderItems` accurately reports changes when items are:
+  - Created.
   - Edited in Outlook.
-  - Deleted from the `AI-KB` folder.
-  - Moved out of the `AI-KB` folder.
-  - Moved back into the `AI-KB` folder.
+  - Deleted from the target folder.
+  - Moved out of the target folder.
+  - Moved back into the target folder.
 * Verification of `ChangeKey` mutation semantics on standard field updates.
 * Exact fields omitted by `SyncFolderItems` requiring a secondary `fetch()`.
 

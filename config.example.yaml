@@ -22,6 +22,9 @@ sources:
     # Supply secrets through the future secret provider/environment, not here.
     password_env: AIKB_EXCHANGE_PASSWORD
     checkpoint_key: exchange-notes
+    folder:
+      root: tois
+      path: KB
 
 enrichments:
   ollama:

@@ -23,6 +23,8 @@ class ExchangeConfig:
     auth_type: str = "NTLM"  # NTLM or Basic
     ca_cert_path: str | None = None
     service_endpoint: str | None = None
+    folder_root: str = "tois"
+    folder_path: str = "KB"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -106,31 +108,56 @@ class ExchangeClient:
         except Exception as e:
             raise ExchangeClientError(f"Failed to connect to Exchange: {e}") from e
 
-    def _get_notes_folder(self) -> Folder:
+    def _get_root_folder(self) -> Folder:
         if not self._account:
             raise ExchangeClientError("Client not connected.")
 
-        # In exchangelib, the Notes folder might be accessed via standard folders,
-        # but the root is 'root' or 'msgfolderroot'
         try:
-            # Notes is typically a distinguished folder
-            return self._account.notes
-        except Exception as e:
-            raise ExchangeClientError(f"Could not locate Notes folder: {e}") from e
-
-    def get_ai_kb_folder(self) -> Folder:
-        notes_folder = self._get_notes_folder()
-        try:
-            # Find child folder AI-KB
-            for child in notes_folder.children:
-                if child.name == "AI-KB":
-                    return child
-            raise ExchangeClientError("AI-KB folder not found under Notes.")
+            folder_root = self._config.folder_root.lower()
+            if folder_root == "notes":
+                return self._account.notes
+            elif folder_root == "tois":
+                return self._account.root.tois
+            else:
+                # Naive fallback for generic root retrieval
+                for child in self._account.root.children:
+                    if child.name.lower() == folder_root:
+                        return child
+                raise ExchangeClientError(
+                    f"Root folder '{self._config.folder_root}' not found."
+                )
         except ExchangeClientError:
             raise
         except Exception as e:
             raise ExchangeClientError(
-                f"Error accessing child folders of Notes: {e}"
+                f"Could not locate root folder '{self._config.folder_root}': {e}"
+            ) from e
+
+    def get_target_folder(self) -> Folder:
+        current_folder = self._get_root_folder()
+        parts = self._config.folder_path.replace("\\", "/").split("/")
+        path_parts = [p for p in parts if p]
+
+        try:
+            for part in path_parts:
+                found = False
+                for child in current_folder.children:
+                    if child.name == part:
+                        current_folder = child
+                        found = True
+                        break
+                if not found:
+                    raise ExchangeClientError(
+                        f"Folder path '{part}' not found under root "
+                        f"'{self._config.folder_root}'."
+                    )
+
+            return current_folder
+        except ExchangeClientError:
+            raise
+        except Exception as e:
+            raise ExchangeClientError(
+                f"Error navigating '{self._config.folder_path}': {e}"
             ) from e
 
     def enumerate_items(self, folder: Folder) -> list[dict[str, Any]]:

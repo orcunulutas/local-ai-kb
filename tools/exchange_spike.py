@@ -38,7 +38,9 @@ def _get_password(env_var_name: str = "EXCHANGE_PASSWORD") -> str:
     return password
 
 
-def _setup_client(config_path: str) -> ExchangeClient:
+def _setup_client_and_folder_config(
+    config_path: str,
+) -> tuple[ExchangeClient, str, str]:
     raw_config = load_config(config_path)
     # the config was moved to sources -> exchange_notes
     sources = raw_config.get("sources", {})
@@ -51,6 +53,11 @@ def _setup_client(config_path: str) -> ExchangeClient:
     auth_type = exchange_cfg.get("auth_type", "NTLM")
     ca_cert_path = exchange_cfg.get("ca_cert_path")
     password_env = exchange_cfg.get("password_env", "EXCHANGE_PASSWORD")
+
+    # Folder configuration
+    folder_cfg = exchange_cfg.get("folder", {})
+    folder_root = folder_cfg.get("root", "tois")
+    folder_path = folder_cfg.get("path", "KB")
 
     if not all([email, username]) or not (endpoint or server):
         print("Error: Missing required config (email, username, endpoint/server).")
@@ -66,6 +73,8 @@ def _setup_client(config_path: str) -> ExchangeClient:
         auth_type=auth_type,
         ca_cert_path=ca_cert_path,
         service_endpoint=endpoint,
+        folder_root=folder_root,
+        folder_path=folder_path,
     )
 
     client = ExchangeClient(config)
@@ -75,7 +84,7 @@ def _setup_client(config_path: str) -> ExchangeClient:
         print(f"Connection failed: {e}")
         sys.exit(1)
 
-    return client
+    return client, folder_root, folder_path
 
 
 def _print_item(item: dict[str, Any]) -> None:
@@ -96,15 +105,22 @@ def _print_item(item: dict[str, Any]) -> None:
 
 def list_items(config_path: str) -> None:
     print("Connecting to Exchange...")
-    client = _setup_client(config_path)
+    client, folder_root, folder_path = _setup_client_and_folder_config(config_path)
 
     try:
-        print("Locating Notes/AI-KB folder...")
-        ai_kb_folder = client.get_ai_kb_folder()
-        print("Found AI-KB folder. Enumerating items...\n")
+        target_path_str = f"{folder_root}/{folder_path}"
+        print(f"Locating {target_path_str} folder...")
+        target_folder = client.get_target_folder()
 
-        items = client.enumerate_items(ai_kb_folder)
-        print(f"Total items found: {len(items)}\n")
+        # Diagnostic prints
+        absolute_path = getattr(target_folder, "absolute", "Unknown")
+        folder_class = getattr(target_folder, "folder_class", "Unknown")
+
+        print(f"resolved_folder_path: {absolute_path}")
+        print(f"folder_class: {folder_class}")
+
+        items = client.enumerate_items(target_folder)
+        print(f"total_count: {len(items)}\n")
 
         for item in items:
             _print_item(item)
@@ -118,11 +134,19 @@ def sync_items(config_path: str) -> None:
     sync_state_file = ".sync_state.txt"
 
     print("Connecting to Exchange...")
-    client = _setup_client(config_path)
+    client, folder_root, folder_path = _setup_client_and_folder_config(config_path)
 
     try:
-        print("Locating Notes/AI-KB folder...")
-        ai_kb_folder = client.get_ai_kb_folder()
+        target_path_str = f"{folder_root}/{folder_path}"
+        print(f"Locating {target_path_str} folder...")
+        target_folder = client.get_target_folder()
+
+        # Diagnostic prints
+        absolute_path = getattr(target_folder, "absolute", "Unknown")
+        folder_class = getattr(target_folder, "folder_class", "Unknown")
+
+        print(f"resolved_folder_path: {absolute_path}")
+        print(f"folder_class: {folder_class}\n")
 
         existing_sync_state: str | None = None
         if os.path.exists(sync_state_file):
@@ -144,7 +168,7 @@ def sync_items(config_path: str) -> None:
             print("sync_state_present: no")
 
         print("Executing sync_items...")
-        result = client.sync_items(ai_kb_folder, sync_state=existing_sync_state)
+        result = client.sync_items(target_folder, sync_state=existing_sync_state)
 
         created = [c for c in result.changes if c.change_type == "create"]
         updated = [c for c in result.changes if c.change_type == "update"]

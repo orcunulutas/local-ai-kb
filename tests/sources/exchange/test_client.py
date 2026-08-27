@@ -17,7 +17,9 @@ def mock_config():
         username="DOMAIN\\test",
         password="password123",
         auth_type="NTLM",
-        service_endpoint="https://mail.example.com/EWS/Exchange.asmx"
+        service_endpoint="https://mail.example.com/EWS/Exchange.asmx",
+        folder_root="tois",
+        folder_path="KB"
     )
 
 class MockFolder:
@@ -31,7 +33,6 @@ class MockFolder:
         return self._items
 
     def sync_items(self, sync_state=None):
-        # Store a reference to folder to update its state
         folder = self
         class MockSyncGenerator:
             def __iter__(self):
@@ -42,20 +43,27 @@ class MockFolder:
 
                 yield ("create", MockItem("id1", "ck1"))
                 yield ("update", MockItem("id2", "ck2"))
-                # exchangelib yields an ItemId object or string for delete
                 yield ("delete", "id3")
-
-                # simulate side effect of updating folder.item_sync_state
                 folder.item_sync_state = "new_state_123"
 
         return MockSyncGenerator()
 
+class MockRoot:
+    def __init__(self, tois_folder):
+        self.tois = tois_folder
+        self.children = [tois_folder]
+
 class MockAccount:
     def __init__(self):
-        self.notes = MockFolder(name="Notes", children=[
-            MockFolder(name="SomeFolder"),
-            MockFolder(name="AI-KB")
+        self.notes = MockFolder(name="Notes")
+        tois_folder = MockFolder(name="Top of Information Store", children=[
+            self.notes,
+            MockFolder(name="KB"),
+            MockFolder(name="Nested", children=[
+                MockFolder(name="Path")
+            ])
         ])
+        self.root = MockRoot(tois_folder)
 
     def fetch(self, item_ids):
         class MockItem:
@@ -71,7 +79,6 @@ def test_client_connect_success(mock_account_cls, mock_config):
     client = ExchangeClient(mock_config)
     client.connect()
 
-    # Verify account was instantiated
     mock_account_cls.assert_called_once()
 
 @patch("aikb.sources.exchange.client.Account")
@@ -83,26 +90,60 @@ def test_client_connect_failure(mock_account_cls, mock_config):
         client.connect()
 
 @patch("aikb.sources.exchange.client.Account")
-def test_get_ai_kb_folder_success(mock_account_cls, mock_config):
+def test_get_target_folder_success_tois(mock_account_cls, mock_config):
     mock_account_cls.return_value = MockAccount()
     client = ExchangeClient(mock_config)
     client.connect()
 
-    folder = client.get_ai_kb_folder()
-    assert folder.name == "AI-KB"
+    folder = client.get_target_folder()
+    assert folder.name == "KB"
 
 @patch("aikb.sources.exchange.client.Account")
-def test_get_ai_kb_folder_not_found(mock_account_cls, mock_config):
+def test_get_target_folder_success_notes(mock_account_cls):
+    config = ExchangeConfig(
+        server="mail.example.com",
+        email="test@example.com",
+        username="DOMAIN\\test",
+        password="password123",
+        folder_root="notes",
+        folder_path=""
+    )
+    mock_account_cls.return_value = MockAccount()
+    client = ExchangeClient(config)
+    client.connect()
+
+    folder = client.get_target_folder()
+    assert folder.name == "Notes"
+
+@patch("aikb.sources.exchange.client.Account")
+def test_get_target_folder_success_nested(mock_account_cls):
+    config = ExchangeConfig(
+        server="mail.example.com",
+        email="test@example.com",
+        username="DOMAIN\\test",
+        password="password123",
+        folder_root="tois",
+        folder_path="Nested/Path"
+    )
+    mock_account_cls.return_value = MockAccount()
+    client = ExchangeClient(config)
+    client.connect()
+
+    folder = client.get_target_folder()
+    assert folder.name == "Path"
+
+@patch("aikb.sources.exchange.client.Account")
+def test_get_target_folder_not_found(mock_account_cls, mock_config):
     mock_account = MockAccount()
-    # Remove AI-KB
-    mock_account.notes.children = [MockFolder(name="SomeFolder")]
+    # Remove KB
+    mock_account.root.tois.children = [mock_account.notes]
     mock_account_cls.return_value = mock_account
 
     client = ExchangeClient(mock_config)
     client.connect()
 
-    with pytest.raises(ExchangeClientError, match="AI-KB folder not found"):
-        client.get_ai_kb_folder()
+    with pytest.raises(ExchangeClientError, match="Folder path 'KB' not found"):
+        client.get_target_folder()
 
 @patch("aikb.sources.exchange.client.Account")
 def test_enumerate_items(mock_account_cls, mock_config):
