@@ -1,5 +1,4 @@
-# This file documents the anticipated configuration shape. Components below
-# are not implemented by the foundation scaffold.
+# Example configuration for the built-in local Exchange Notes pipeline.
 application:
   state_database: ./var/state/aikb.db
   published_directory: ./published
@@ -12,16 +11,27 @@ pipeline:
   renderer: markdown
   sink: qmd
 
+# References only: passwords are stored by the selected provider, never here.
+credentials:
+  exchange-kb:
+    provider: keyring
+    service: local-ai-kb.exchange
+    username: user@example.invalid
+
+  # Explicit fallback for headless operation or tests:
+  # exchange-kb-headless:
+  #   provider: environment
+  #   variable: AIKB_EXCHANGE_PASSWORD
+
 sources:
   exchange_notes:
     endpoint: https://exchange.example.invalid/EWS/Exchange.asmx
     server: exchange.example.invalid
     email: user@example.invalid
     username: user@example.invalid
+    credential: exchange-kb
     auth_type: NTLM # NTLM or Basic
     # ca_cert_path: /path/to/custom/ca.crt # Optional custom CA certificate path
-    # Supply secrets through the future secret provider/environment, not here.
-    password_env: AIKB_EXCHANGE_PASSWORD
     checkpoint_key: exchange-notes
     folder:
       root: tois

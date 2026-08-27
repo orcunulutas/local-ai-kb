@@ -12,6 +12,8 @@ license = { file = "LICENSE" }
 authors = [{ name = "Orcun" }]
 dependencies = [
     "exchangelib>=5.4.2",
+    "keyring>=25.7.0",
+    "secretstorage>=3.3.3; sys_platform == 'linux'",
     "pyyaml>=6.0.1",
 ]
 

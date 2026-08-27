@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -43,12 +42,19 @@ def load_config(path: Path) -> AppConfig:
         raise ValueError(f"cannot read configuration {path}: {error}") from error
     if not isinstance(data, dict):
         raise ValueError("configuration root must be a mapping")
+    _reject_inline_exchange_secret(data)
     return AppConfig(data, path.resolve())
 
 
-def required_secret(source: dict[str, Any]) -> str:
-    variable = str(source.get("password_env", "EXCHANGE_PASSWORD"))
-    value = os.environ.get(variable)
-    if not value:
-        raise ValueError(f"required environment variable is not set: {variable}")
-    return value
+def _reject_inline_exchange_secret(data: dict[str, Any]) -> None:
+    sources = data.get("sources", {})
+    exchange = sources.get("exchange_notes", {}) if isinstance(sources, dict) else {}
+    if not isinstance(exchange, dict):
+        return
+    forbidden = sorted({"password", "password_env"}.intersection(exchange))
+    if forbidden:
+        fields = ", ".join(forbidden)
+        raise ValueError(
+            f"Exchange secret fields are not allowed in configuration: {fields}; "
+            "use a named credential reference"
+        )

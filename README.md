@@ -48,9 +48,16 @@ pip install -e '.[dev]'
 pytest
 ```
 
-Copy `config.example.yaml` to `config.yaml`, set the configured Exchange
-password environment variable, ensure Ollama and QMD are installed locally,
-then run:
+Copy `config.example.yaml` to `config.yaml`. The Exchange source refers to a
+named entry under `credentials`; it never contains the password. For the
+default Linux keyring provider, store the password once (the command prompts
+for it without putting it in shell history):
+
+```bash
+python -m keyring set local-ai-kb.exchange user@example.invalid
+```
+
+Ensure Ollama and QMD are installed locally, then run:
 
 ```bash
 aikb sync
@@ -58,8 +65,11 @@ aikb sync
 python -m aikb sync
 ```
 
-The configuration file is resolved relative to its own directory. Never put
-credentials in it; only the environment variable name is configured.
+The configuration file is resolved relative to its own directory. On Linux,
+Python keyring uses the desktop Secret Service backend when available. For a
+headless job or tests, configure a credential with `provider: environment` and
+an environment-variable name explicitly; there is no implicit environment
+fallback.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for dependency rules and
 [PLAN.md](PLAN.md) for incremental delivery stages.

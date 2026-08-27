@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from aikb.application.config import AppConfig, required_secret
+from aikb.application.config import AppConfig
+from aikb.application.credentials import resolve_credential
 from aikb.application.pipeline import SyncPipeline
 from aikb.application.state import SqliteState
 from aikb.enrichments.ollama import OllamaEnrichment
@@ -18,6 +19,7 @@ def build_pipeline(config: AppConfig) -> SyncPipeline:
     source = config.raw.get("sources", {}).get("exchange_notes")
     if not isinstance(source, dict):
         raise ValueError("sources.exchange_notes must be configured")
+    credential_reference = _required(source, "credential")
     folder = source.get("folder", {})
     state = SqliteState(config.state_db)
     exchange = ExchangeClient(
@@ -26,7 +28,7 @@ def build_pipeline(config: AppConfig) -> SyncPipeline:
             service_endpoint=source.get("endpoint"),
             email=_required(source, "email"),
             username=_required(source, "username"),
-            password=required_secret(source),
+            password=resolve_credential(config.raw, credential_reference),
             auth_type=str(source.get("auth_type", "NTLM")),
             ca_cert_path=source.get("ca_cert_path"),
             folder_root=str(folder.get("root", "tois")),

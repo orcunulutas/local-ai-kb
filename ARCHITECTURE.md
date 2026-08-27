@@ -80,6 +80,12 @@ code belongs in `sources/exchange/client.py` (and nearby Exchange-only support
 modules). `notes.py` and future `mail.py` remain independent source adapters
 that share this infrastructure. There is no Exchange code in processors.
 
+Credential lookup is a narrow application boundary resolved by the composition
+root before constructing the Exchange client. Configuration contains a named
+credential reference only. The interactive built-in uses the operating system
+keyring; the environment provider is an explicitly configured headless/test
+fallback and is never selected implicitly.
+
 ## Composition and registries
 
 Registries map explicit names to factories. Each capability has its own
@@ -101,4 +107,3 @@ Unit tests protect pure domain invariants, protocol conformance, and registries.
 Integration tests will exercise module seams using fakes before real services
 are enabled. External-service fixtures must be sanitized and deterministic;
 live credentials and network dependence are prohibited in the default suite.
-
