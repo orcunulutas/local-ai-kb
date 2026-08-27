@@ -11,7 +11,16 @@ from exchangelib import (
     Credentials,
     FaultTolerance,
 )
+from exchangelib.extended_properties import ExtendedProperty
 from exchangelib.folders import Folder
+from exchangelib.items import Item
+
+
+# PR_SEARCH_KEY: 0x300B, Binary
+class PidTagSearchKey(ExtendedProperty):  # type: ignore[misc]
+    property_tag = 0x300B
+    property_type = "Binary"
+
 
 
 @dataclasses.dataclass(frozen=True)
@@ -65,6 +74,12 @@ class ExchangeClient:
 
     def connect(self) -> None:
         """Connects to the Exchange EWS endpoint."""
+        try:
+            Item.deregister("search_key")
+        except Exception:
+            pass
+        Item.register("search_key", PidTagSearchKey)
+
         self._setup_tls()
 
         auth_type = NTLM
@@ -171,6 +186,10 @@ class ExchangeClient:
                     {
                         "id": getattr(item, "id", None),
                         "changekey": getattr(item, "changekey", None),
+                        "search_key": (
+                            getattr(item, "search_key", b"").hex().upper()
+                            if getattr(item, "search_key", None) else None
+                        ),
                         "subject": getattr(item, "subject", None),
                         # exchangelib Note class often uses text_body or body
                         "body": getattr(item, "text_body", None)
@@ -248,6 +267,10 @@ class ExchangeClient:
                     {
                         "id": getattr(item, "id", None),
                         "changekey": getattr(item, "changekey", None),
+                        "search_key": (
+                            getattr(item, "search_key", b"").hex().upper()
+                            if getattr(item, "search_key", None) else None
+                        ),
                         "subject": getattr(item, "subject", None),
                         "body": getattr(item, "text_body", None)
                         or getattr(item, "body", None),

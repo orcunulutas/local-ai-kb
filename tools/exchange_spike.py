@@ -92,6 +92,7 @@ def _print_item(item: dict[str, Any]) -> None:
     print("----")
     print(f"ID: {item.get('id')}")
     print(f"ChangeKey: {item.get('changekey')}")
+    print(f"SearchKey: {item.get('search_key')}")
     print(f"Subject: {item.get('subject')}")
     print(f"Class: {item.get('item_class')}")
     print(f"Created: {item.get('datetime_created')}")
