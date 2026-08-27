@@ -48,3 +48,4 @@ cover/
 .mypy_cache/
 .ruff_cache/
 .sync_state.txt
+config.yaml

@@ -108,7 +108,7 @@ Changes:
 
 ## SyncFolderItems Limitations & Follow-up Fetch Strategy
 `SyncFolderItems` primarily returns identity and versioning information (`id`, `changekey`) and sometimes basic metadata depending on the EWS query configuration. It often does *not* return the complete text or HTML body of a Note.
-A two-step fetch strategy is required for production:
+A two-step fetch strategy may be required for production:
 1. Call `sync_items` to retrieve lists of created, updated, and deleted items with their IDs and ChangeKeys.
 2. For creations and updates, perform a bulk `fetch()` using the collected IDs to obtain full item properties, particularly `body`.
 
