@@ -16,12 +16,13 @@ from exchangelib.folders import Folder
 
 @dataclasses.dataclass(frozen=True)
 class ExchangeConfig:
-    server: str
+    server: str | None
     email: str
     username: str
     password: str
     auth_type: str = "NTLM"  # NTLM or Basic
     ca_cert_path: str | None = None
+    service_endpoint: str | None = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -57,7 +58,7 @@ class ExchangeClient:
             # Note: This affects global ssl context in Python which is what exchangelib uses by default
             # In a full production scenario, we'd want to inject this more carefully into the transport.
             # But for the spike, we'll set the environment variable that requests uses
-            os.environ['REQUESTS_CA_BUNDLE'] = self._config.ca_cert_path
+            os.environ["REQUESTS_CA_BUNDLE"] = self._config.ca_cert_path
 
     def connect(self) -> None:
         """Connects to the Exchange EWS endpoint."""
@@ -72,12 +73,21 @@ class ExchangeClient:
             raise ExchangeClientError(f"Unsupported auth_type: {self._config.auth_type}")
 
         credentials = Credentials(username=self._config.username, password=self._config.password)
-        config = Configuration(
-            server=self._config.server,
-            credentials=credentials,
-            auth_type=auth_type,
-            retry_policy=FaultTolerance(max_wait=3600),
-        )
+
+        config_kwargs = {
+            "credentials": credentials,
+            "auth_type": auth_type,
+            "retry_policy": FaultTolerance(max_wait=3600),
+        }
+
+        if self._config.service_endpoint:
+            config_kwargs["service_endpoint"] = self._config.service_endpoint
+        elif self._config.server:
+            config_kwargs["server"] = self._config.server
+        else:
+            raise ExchangeClientError("Either service_endpoint or server must be provided.")
+
+        config = Configuration(**config_kwargs)
 
         try:
             self._account = Account(
@@ -121,16 +131,18 @@ class ExchangeClient:
         items_data = []
         try:
             for item in folder.all():
-                items_data.append({
-                    "id": getattr(item, "id", None),
-                    "changekey": getattr(item, "changekey", None),
-                    "subject": getattr(item, "subject", None),
-                    # exchangelib Note class often uses text_body or body
-                    "body": getattr(item, "text_body", None) or getattr(item, "body", None),
-                    "datetime_created": getattr(item, "datetime_created", None),
-                    "last_modified_time": getattr(item, "last_modified_time", None),
-                    "item_class": getattr(item, "item_class", None),
-                })
+                items_data.append(
+                    {
+                        "id": getattr(item, "id", None),
+                        "changekey": getattr(item, "changekey", None),
+                        "subject": getattr(item, "subject", None),
+                        # exchangelib Note class often uses text_body or body
+                        "body": getattr(item, "text_body", None) or getattr(item, "body", None),
+                        "datetime_created": getattr(item, "datetime_created", None),
+                        "last_modified_time": getattr(item, "last_modified_time", None),
+                        "item_class": getattr(item, "item_class", None),
+                    }
+                )
         except Exception as e:
             raise ExchangeClientError(f"Error enumerating items: {e}") from e
         return items_data
@@ -143,29 +155,33 @@ class ExchangeClient:
         try:
             # exchangelib's folder.sync_items returns a generator yielding
             # (change_type, item_or_id).
-            # change_type is one of 'create', 'update', 'delete', 'read_flag_change'.
-            # item_or_id is an Item object for create/update, and a string ID for delete.
-            # The sync_state property of the generator is updated after the generator is consumed.
+            # The sync state is updated on the folder object as 'item_sync_state'
+            # once the generator is exhausted.
             sync_generator = folder.sync_items(sync_state=sync_state)
 
             changes = []
             for change_type, item in sync_generator:
                 if change_type in ("create", "update"):
-                    changes.append(ExchangeItemChange(
-                        item_id=getattr(item, "id", ""),
-                        change_key=getattr(item, "changekey", ""),
-                        change_type=change_type,
-                    ))
+                    changes.append(
+                        ExchangeItemChange(
+                            item_id=getattr(item, "id", ""),
+                            change_key=getattr(item, "changekey", ""),
+                            change_type=change_type,
+                        )
+                    )
                 elif change_type == "delete":
                     # For delete, exchangelib yields an ItemId object which has an 'id' attribute
                     item_id_val = getattr(item, "id", str(item))
-                    changes.append(ExchangeItemChange(
-                        item_id=item_id_val,
-                        change_key=getattr(item, "changekey", "") if hasattr(item, "changekey") else "",
-                        change_type="delete",
-                    ))
+                    changes.append(
+                        ExchangeItemChange(
+                            item_id=item_id_val,
+                            change_key=getattr(item, "changekey", "") if hasattr(item, "changekey") else "",
+                            change_type="delete",
+                        )
+                    )
 
-            new_sync_state = sync_generator.sync_state
+            # Retrieve the new sync state directly from the folder API after consuming the generator
+            new_sync_state = folder.item_sync_state
             return SyncStateResult(sync_state=new_sync_state, changes=changes)
 
         except Exception as e:
@@ -186,15 +202,17 @@ class ExchangeClient:
                 if isinstance(item, Exception):
                     # Handle error for individual item
                     continue
-                items_data.append({
-                    "id": getattr(item, "id", None),
-                    "changekey": getattr(item, "changekey", None),
-                    "subject": getattr(item, "subject", None),
-                    "body": getattr(item, "text_body", None) or getattr(item, "body", None),
-                    "datetime_created": getattr(item, "datetime_created", None),
-                    "last_modified_time": getattr(item, "last_modified_time", None),
-                    "item_class": getattr(item, "item_class", None),
-                })
+                items_data.append(
+                    {
+                        "id": getattr(item, "id", None),
+                        "changekey": getattr(item, "changekey", None),
+                        "subject": getattr(item, "subject", None),
+                        "body": getattr(item, "text_body", None) or getattr(item, "body", None),
+                        "datetime_created": getattr(item, "datetime_created", None),
+                        "last_modified_time": getattr(item, "last_modified_time", None),
+                        "item_class": getattr(item, "item_class", None),
+                    }
+                )
             return items_data
         except Exception as e:
             raise ExchangeClientError(f"Error fetching items: {e}") from e

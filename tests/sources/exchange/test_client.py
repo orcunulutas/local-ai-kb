@@ -16,7 +16,8 @@ def mock_config():
         email="test@example.com",
         username="DOMAIN\\test",
         password="password123",
-        auth_type="NTLM"
+        auth_type="NTLM",
+        service_endpoint="https://mail.example.com/EWS/Exchange.asmx"
     )
 
 class MockFolder:
@@ -24,14 +25,15 @@ class MockFolder:
         self.name = name
         self.children = children or []
         self._items = []
+        self.item_sync_state = None
 
     def all(self):
         return self._items
 
     def sync_items(self, sync_state=None):
+        # Store a reference to folder to update its state
+        folder = self
         class MockSyncGenerator:
-            def __init__(self):
-                self.sync_state = "new_state_123"
             def __iter__(self):
                 class MockItem:
                     def __init__(self, id, changekey):
@@ -41,6 +43,9 @@ class MockFolder:
                 yield ("create", MockItem("id1", "ck1"))
                 yield ("update", MockItem("id2", "ck2"))
                 yield ("delete", "id3") # exchangelib yields an ItemId object or string for delete
+
+                # simulate side effect of updating folder.item_sync_state after iteration
+                folder.item_sync_state = "new_state_123"
 
         return MockSyncGenerator()
 

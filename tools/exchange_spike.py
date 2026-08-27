@@ -37,16 +37,19 @@ def _get_password() -> str:
 
 def _setup_client(config_path: str) -> ExchangeClient:
     raw_config = load_config(config_path)
-    exchange_cfg = raw_config.get("exchange", {})
+    # the config was moved to sources -> exchange_notes
+    sources = raw_config.get("sources", {})
+    exchange_cfg = sources.get("exchange_notes", {})
 
+    endpoint = exchange_cfg.get("endpoint")
     server = exchange_cfg.get("server")
     email = exchange_cfg.get("email")
     username = exchange_cfg.get("username")
     auth_type = exchange_cfg.get("auth_type", "NTLM")
     ca_cert_path = exchange_cfg.get("ca_cert_path")
 
-    if not all([server, email, username]):
-        print("Error: Missing required config (server, email, username).")
+    if not all([email, username]) or not (endpoint or server):
+        print("Error: Missing required config (email, username, and either endpoint or server).")
         sys.exit(1)
 
     password = _get_password()
@@ -58,6 +61,7 @@ def _setup_client(config_path: str) -> ExchangeClient:
         password=password,
         auth_type=auth_type,
         ca_cert_path=ca_cert_path,
+        service_endpoint=endpoint,
     )
 
     client = ExchangeClient(config)
