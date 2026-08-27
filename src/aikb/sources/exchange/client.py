@@ -23,7 +23,7 @@ class ExchangeConfig:
     auth_type: str = "NTLM"  # NTLM or Basic
     ca_cert_path: str | None = None
     service_endpoint: str | None = None
-    folder_root: str = "notes"
+    folder_root: str = "tois"
     folder_path: str = "KB"
 
 
@@ -112,15 +112,16 @@ class ExchangeClient:
         if not self._account:
             raise ExchangeClientError("Client not connected.")
 
-        # In exchangelib, the Notes folder might be accessed via standard folders,
-        # but the root is 'root' or 'msgfolderroot'
         try:
-            if self._config.folder_root.lower() == "notes":
+            folder_root = self._config.folder_root.lower()
+            if folder_root == "notes":
                 return self._account.notes
+            elif folder_root == "tois":
+                return self._account.root.tois
             else:
                 # Naive fallback for generic root retrieval
                 for child in self._account.root.children:
-                    if child.name.lower() == self._config.folder_root.lower():
+                    if child.name.lower() == folder_root:
                         return child
                 raise ExchangeClientError(
                     f"Root folder '{self._config.folder_root}' not found."

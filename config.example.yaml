@@ -23,7 +23,7 @@ sources:
     password_env: AIKB_EXCHANGE_PASSWORD
     checkpoint_key: exchange-notes
     folder:
-      root: notes
+      root: tois
       path: KB
 
 enrichments:

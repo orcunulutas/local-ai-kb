@@ -27,7 +27,7 @@ def mock_config_file(tmp_path):
                 "auth_type": "NTLM",
                 "password_env": "CUSTOM_PASSWORD_ENV",
                 "folder": {
-                    "root": "notes",
+                    "root": "tois",
                     "path": "MyKB/SubKB",
                 }
             }
@@ -43,7 +43,7 @@ def test_spike_config_parsing(mock_config_file):
         mock_client = MagicMock()
         mock_client_cls.return_value = mock_client
 
-        spike._setup_client(mock_config_file)
+        spike._setup_client_and_folder_config(mock_config_file)
 
         mock_client_cls.assert_called_once()
         config = mock_client_cls.call_args[0][0]
@@ -54,7 +54,7 @@ def test_spike_config_parsing(mock_config_file):
         assert config.username == "user@example.invalid"
         assert config.auth_type == "NTLM"
         assert config.password == "secret123"
-        assert config.folder_root == "notes"
+        assert config.folder_root == "tois"
         assert config.folder_path == "MyKB/SubKB"
 
 @patch.dict(os.environ, {"EXCHANGE_PASSWORD": "fallback123"}, clear=True)
@@ -64,7 +64,7 @@ def test_spike_password_fallback(mock_config_file):
         mock_client = MagicMock()
         mock_client_cls.return_value = mock_client
 
-        spike._setup_client(mock_config_file)
+        spike._setup_client_and_folder_config(mock_config_file)
         config = mock_client_cls.call_args[0][0]
 
         assert config.password == "fallback123"
@@ -79,7 +79,7 @@ def test_spike_password_interactive(mock_getpass, mock_config_file):
         mock_client = MagicMock()
         mock_client_cls.return_value = mock_client
 
-        spike._setup_client(mock_config_file)
+        spike._setup_client_and_folder_config(mock_config_file)
         config = mock_client_cls.call_args[0][0]
 
         assert config.password == "interactive123"

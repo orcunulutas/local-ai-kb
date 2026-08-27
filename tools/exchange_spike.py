@@ -38,7 +38,9 @@ def _get_password(env_var_name: str = "EXCHANGE_PASSWORD") -> str:
     return password
 
 
-def _setup_client(config_path: str) -> ExchangeClient:
+def _setup_client_and_folder_config(
+    config_path: str,
+) -> tuple[ExchangeClient, str, str]:
     raw_config = load_config(config_path)
     # the config was moved to sources -> exchange_notes
     sources = raw_config.get("sources", {})
@@ -54,7 +56,7 @@ def _setup_client(config_path: str) -> ExchangeClient:
 
     # Folder configuration
     folder_cfg = exchange_cfg.get("folder", {})
-    folder_root = folder_cfg.get("root", "notes")
+    folder_root = folder_cfg.get("root", "tois")
     folder_path = folder_cfg.get("path", "KB")
 
     if not all([email, username]) or not (endpoint or server):
@@ -82,7 +84,7 @@ def _setup_client(config_path: str) -> ExchangeClient:
         print(f"Connection failed: {e}")
         sys.exit(1)
 
-    return client
+    return client, folder_root, folder_path
 
 
 def _print_item(item: dict[str, Any]) -> None:
@@ -103,16 +105,22 @@ def _print_item(item: dict[str, Any]) -> None:
 
 def list_items(config_path: str) -> None:
     print("Connecting to Exchange...")
-    client = _setup_client(config_path)
+    client, folder_root, folder_path = _setup_client_and_folder_config(config_path)
 
     try:
-        target_path_str = f"{client._config.folder_root}/{client._config.folder_path}"
+        target_path_str = f"{folder_root}/{folder_path}"
         print(f"Locating {target_path_str} folder...")
         target_folder = client.get_target_folder()
-        print(f"Found {client._config.folder_path} folder. Enumerating items...\n")
+
+        # Diagnostic prints
+        absolute_path = getattr(target_folder, "absolute", "Unknown")
+        folder_class = getattr(target_folder, "folder_class", "Unknown")
+
+        print(f"resolved_folder_path: {absolute_path}")
+        print(f"folder_class: {folder_class}")
 
         items = client.enumerate_items(target_folder)
-        print(f"Total items found: {len(items)}\n")
+        print(f"total_count: {len(items)}\n")
 
         for item in items:
             _print_item(item)
@@ -126,12 +134,19 @@ def sync_items(config_path: str) -> None:
     sync_state_file = ".sync_state.txt"
 
     print("Connecting to Exchange...")
-    client = _setup_client(config_path)
+    client, folder_root, folder_path = _setup_client_and_folder_config(config_path)
 
     try:
-        target_path_str = f"{client._config.folder_root}/{client._config.folder_path}"
+        target_path_str = f"{folder_root}/{folder_path}"
         print(f"Locating {target_path_str} folder...")
         target_folder = client.get_target_folder()
+
+        # Diagnostic prints
+        absolute_path = getattr(target_folder, "absolute", "Unknown")
+        folder_class = getattr(target_folder, "folder_class", "Unknown")
+
+        print(f"resolved_folder_path: {absolute_path}")
+        print(f"folder_class: {folder_class}\n")
 
         existing_sync_state: str | None = None
         if os.path.exists(sync_state_file):
