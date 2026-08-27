@@ -52,6 +52,11 @@ def _setup_client(config_path: str) -> ExchangeClient:
     ca_cert_path = exchange_cfg.get("ca_cert_path")
     password_env = exchange_cfg.get("password_env", "EXCHANGE_PASSWORD")
 
+    # Folder configuration
+    folder_cfg = exchange_cfg.get("folder", {})
+    folder_root = folder_cfg.get("root", "notes")
+    folder_path = folder_cfg.get("path", "KB")
+
     if not all([email, username]) or not (endpoint or server):
         print("Error: Missing required config (email, username, endpoint/server).")
         sys.exit(1)
@@ -66,6 +71,8 @@ def _setup_client(config_path: str) -> ExchangeClient:
         auth_type=auth_type,
         ca_cert_path=ca_cert_path,
         service_endpoint=endpoint,
+        folder_root=folder_root,
+        folder_path=folder_path,
     )
 
     client = ExchangeClient(config)
@@ -99,11 +106,12 @@ def list_items(config_path: str) -> None:
     client = _setup_client(config_path)
 
     try:
-        print("Locating Notes/AI-KB folder...")
-        ai_kb_folder = client.get_ai_kb_folder()
-        print("Found AI-KB folder. Enumerating items...\n")
+        target_path_str = f"{client._config.folder_root}/{client._config.folder_path}"
+        print(f"Locating {target_path_str} folder...")
+        target_folder = client.get_target_folder()
+        print(f"Found {client._config.folder_path} folder. Enumerating items...\n")
 
-        items = client.enumerate_items(ai_kb_folder)
+        items = client.enumerate_items(target_folder)
         print(f"Total items found: {len(items)}\n")
 
         for item in items:
@@ -121,8 +129,9 @@ def sync_items(config_path: str) -> None:
     client = _setup_client(config_path)
 
     try:
-        print("Locating Notes/AI-KB folder...")
-        ai_kb_folder = client.get_ai_kb_folder()
+        target_path_str = f"{client._config.folder_root}/{client._config.folder_path}"
+        print(f"Locating {target_path_str} folder...")
+        target_folder = client.get_target_folder()
 
         existing_sync_state: str | None = None
         if os.path.exists(sync_state_file):
@@ -144,7 +153,7 @@ def sync_items(config_path: str) -> None:
             print("sync_state_present: no")
 
         print("Executing sync_items...")
-        result = client.sync_items(ai_kb_folder, sync_state=existing_sync_state)
+        result = client.sync_items(target_folder, sync_state=existing_sync_state)
 
         created = [c for c in result.changes if c.change_type == "create"]
         updated = [c for c in result.changes if c.change_type == "update"]

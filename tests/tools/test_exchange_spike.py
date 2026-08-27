@@ -26,6 +26,10 @@ def mock_config_file(tmp_path):
                 "username": "user@example.invalid",
                 "auth_type": "NTLM",
                 "password_env": "CUSTOM_PASSWORD_ENV",
+                "folder": {
+                    "root": "notes",
+                    "path": "MyKB/SubKB",
+                }
             }
         }
     }
@@ -50,6 +54,8 @@ def test_spike_config_parsing(mock_config_file):
         assert config.username == "user@example.invalid"
         assert config.auth_type == "NTLM"
         assert config.password == "secret123"
+        assert config.folder_root == "notes"
+        assert config.folder_path == "MyKB/SubKB"
 
 @patch.dict(os.environ, {"EXCHANGE_PASSWORD": "fallback123"}, clear=True)
 def test_spike_password_fallback(mock_config_file):
