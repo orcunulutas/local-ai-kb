@@ -1,0 +1,32 @@
+# This file documents the anticipated configuration shape. Components below
+# are not implemented by the foundation scaffold.
+application:
+  state_directory: ./var/state
+  log_level: INFO
+
+pipeline:
+  source: exchange_notes
+  processor: default
+  enrichment: ollama
+  renderer: markdown
+  sink: qmd
+
+sources:
+  exchange_notes:
+    endpoint: https://exchange.example.invalid/EWS/Exchange.asmx
+    username: user@example.invalid
+    # Supply secrets through the future secret provider/environment, not here.
+    password_env: AIKB_EXCHANGE_PASSWORD
+    checkpoint_key: exchange-notes
+
+enrichments:
+  ollama:
+    base_url: http://127.0.0.1:11434
+    model: example-model
+    timeout_seconds: 30
+
+sinks:
+  qmd:
+    executable: qmd
+    collection: local-ai-kb
+
