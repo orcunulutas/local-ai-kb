@@ -80,6 +80,7 @@ Item
 ----
 ID: AQMk...
 ChangeKey: CQAA...
+SearchKey: 7365617263686B65795F31
 Subject: Meeting Notes
 Class: IPM.StickyNote
 Created: 2024-05-10T10:00:00+00:00
@@ -128,18 +129,20 @@ A two-step fetch strategy may be required for production:
 * The validated custom target folder was discovered directly under `Top of Information Store` (`tois`) and sits as a sibling of `Notes`. The target folder class was `IPF.StickyNote`.
 * The previous assumption that the target folder would be a child of `Notes` was disproved.
 * The target custom folder is successfully discovered even when empty.
+* Initial incremental synchronization with items produced `CREATE`.
+* A subsequent sync with no changes produced zero changes, but **the opaque sync state mutated anyway**, meaning state equality cannot be used as an idempotency signal.
+* Editing the Note in the target folder produced an `UPDATE`. During in-folder edits, `ItemId` remained stable, while `ChangeKey` and modified timestamps changed.
+* Moving the Note out of the target folder produced a `DELETE`.
+* Moving the Note back into the target folder produced a `CREATE`.
+* Moving between folders **changed the EWS ItemId**. EWS `ItemId` is a physical locator, not a durable logical identity.
+* `PidTagSearchKey` (`PR_SEARCH_KEY`) is readable and remained identical across folder moves. It is the current candidate for a stable logical identity pending any further validations. `ChangeKey` acts as a revision token. Note that synthetic `ChangeKey` values on `DELETE` events do not represent a document revision.
+* Moving items in Outlook was visible immediately locally before refreshing an EWS query. Closing Outlook allowed the server-side move to materialize. **EWS server state is authoritative for ingestion**.
+
+### Production Adaptor Implications
+* The production `ExchangeNotesAdapter` will require a durable source-specific mapping from current/previous EWS `ItemId` locators to their true logical identity (`SearchKey`). This deletion mapping is not implemented in this Phase 0 spike and must be isolated from the generic domain contracts.
 
 ### Still Requiring Real On-Prem Exchange Validation
-The following behavior has been designed around but requires validation against a real server during further incremental sync experiments:
-* Stability of `ItemId` values across edits.
-* Verification that `SyncFolderItems` accurately reports changes when items are:
-  - Created.
-  - Edited in Outlook.
-  - Deleted from the target folder.
-  - Moved out of the target folder.
-  - Moved back into the target folder.
-* Verification of `ChangeKey` mutation semantics on standard field updates.
-* Exact fields omitted by `SyncFolderItems` requiring a secondary `fetch()`.
+* The exact fields omitted by `SyncFolderItems` requiring a secondary `fetch()` still need systematic characterization depending on the final production ingestion shape requirements.
 
 ## Known Limitations
 * This spike is currently unable to reach the private on-premises Exchange endpoint from the cloud development environment.
