@@ -11,3 +11,4 @@ build/
 # Local runtime state and configuration may contain credentials.
 config.yaml
 var/
+.sync_state.txt
