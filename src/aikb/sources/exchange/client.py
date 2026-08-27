@@ -10,10 +10,10 @@ from exchangelib import (
     Configuration,
     Credentials,
     FaultTolerance,
+    Message,
 )
 from exchangelib.extended_properties import ExtendedProperty
 from exchangelib.folders import Folder
-from exchangelib.items import Item
 
 
 # PR_SEARCH_KEY: 0x300B, Binary
@@ -75,10 +75,10 @@ class ExchangeClient:
     def connect(self) -> None:
         """Connects to the Exchange EWS endpoint."""
         try:
-            Item.deregister("search_key")
+            Message.deregister("search_key")
         except Exception:
             pass
-        Item.register("search_key", PidTagSearchKey)
+        Message.register("search_key", PidTagSearchKey)
 
         self._setup_tls()
 

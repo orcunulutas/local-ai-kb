@@ -6,6 +6,7 @@ from aikb.sources.exchange.client import (
     ExchangeClient,
     ExchangeClientError,
     ExchangeConfig,
+    PidTagSearchKey,
 )
 
 
@@ -81,6 +82,20 @@ def test_client_connect_success(mock_account_cls, mock_config):
 
     mock_account_cls.assert_called_once()
 
+
+@patch("aikb.sources.exchange.client.Account")
+@patch("aikb.sources.exchange.client.Message")
+def test_client_connect_registers_search_key_on_message(
+    mock_message_cls, mock_account_cls, mock_config
+):
+    client = ExchangeClient(mock_config)
+    client.connect()
+
+    mock_message_cls.deregister.assert_called_once_with("search_key")
+    mock_message_cls.register.assert_called_once_with("search_key", PidTagSearchKey)
+    assert PidTagSearchKey.property_tag == 0x300B
+    assert PidTagSearchKey.property_type == "Binary"
+
 @patch("aikb.sources.exchange.client.Account")
 def test_client_connect_failure(mock_account_cls, mock_config):
     mock_account_cls.side_effect = Exception("Auth failed")
@@ -154,6 +169,7 @@ def test_enumerate_items(mock_account_cls, mock_config):
     class MockItem:
         id = "1"
         changekey = "ck1"
+        search_key = b"\xab\xcd\x01"
         subject = "Note 1"
         text_body = "Body 1"
         datetime_created = "2024-01-01"
@@ -165,6 +181,7 @@ def test_enumerate_items(mock_account_cls, mock_config):
     items = client.enumerate_items(folder)
     assert len(items) == 1
     assert items[0]["id"] == "1"
+    assert items[0]["search_key"] == "ABCD01"
     assert items[0]["subject"] == "Note 1"
     assert items[0]["body"] == "Body 1"
 
@@ -190,10 +207,24 @@ def test_sync_items(mock_account_cls, mock_config):
 @patch("aikb.sources.exchange.client.Account")
 def test_fetch_items(mock_account_cls, mock_config):
     mock_account_cls.return_value = MockAccount()
+    mock_account_cls.return_value.fetch = lambda item_ids: [
+        type(
+            "MockItem",
+            (),
+            {
+                "id": id_val,
+                "subject": f"Subject {id_val}",
+                "body": f"Body {id_val}",
+                "search_key": b"\xde\xad\xbe\xef",
+            },
+        )()
+        for id_val, _ in item_ids
+    ]
     client = ExchangeClient(mock_config)
     client.connect()
 
     items = client.fetch_items([("id1", "ck1"), ("id2", "ck2")])
     assert len(items) == 2
     assert items[0]["id"] == "id1"
+    assert items[0]["search_key"] == "DEADBEEF"
     assert items[0]["subject"] == "Subject id1"
