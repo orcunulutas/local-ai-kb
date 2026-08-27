@@ -7,6 +7,19 @@ from urllib import request
 
 from aikb.domain import KnowledgeDocument
 
+ENRICHMENT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "semantic_title": {"type": "string"},
+        "summary": {"type": "string"},
+        "tags": {"type": "array", "items": {"type": "string"}},
+        "domain": {"type": "string"},
+        "entities": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["semantic_title", "summary", "tags", "domain", "entities"],
+    "additionalProperties": False,
+}
+
 
 class OllamaEnrichment:
     def __init__(
@@ -24,14 +37,19 @@ class OllamaEnrichment:
 
     def enrich(self, document: KnowledgeDocument) -> KnowledgeDocument:
         prompt = (
-            "Return JSON only with keys summary (string) and tags (array of strings). "
-            "Do not invent facts.\n\nTitle: "
+            "Return JSON only with semantic_title, summary, tags, domain, and "
+            "entities. Do not invent facts or rewrite the source body.\n\nTitle: "
             + document.title
             + "\n\n"
             + document.content
         )
         payload = json.dumps(
-            {"model": self._model, "prompt": prompt, "stream": False, "format": "json"}
+            {
+                "model": self._model,
+                "prompt": prompt,
+                "stream": False,
+                "format": ENRICHMENT_SCHEMA,
+            }
         ).encode()
         try:
             response = request.urlopen(  # noqa: S310 - configured local endpoint
@@ -44,21 +62,36 @@ class OllamaEnrichment:
             )
             outer = json.loads(response.read().decode())
             enriched = json.loads(outer["response"])
+            if not isinstance(enriched, dict):
+                raise ValueError("Ollama enrichment response must be a JSON object")
         except (OSError, KeyError, ValueError) as exc:
             if not self._optional:
                 raise RuntimeError(f"Ollama enrichment failed: {exc}") from exc
             return document
         metadata = dict(document.metadata)
         metadata["enrichment.ollama.model"] = self._model
-        metadata["enrichment.summary"] = str(enriched.get("summary", ""))
-        metadata["enrichment.tags"] = sorted(
-            str(tag) for tag in enriched.get("tags", [])
-        )
+        metadata["enrichment.summary"] = _string(enriched.get("summary"))
+        metadata["enrichment.tags"] = _strings(enriched.get("tags"))
+        metadata["enrichment.domain"] = _string(enriched.get("domain"))
+        metadata["enrichment.entities"] = _strings(enriched.get("entities"))
+        semantic_title = _string(enriched.get("semantic_title")) or document.title
         return KnowledgeDocument(
             document.document_id,
             document.source,
             document.source_external_id,
-            document.title,
+            semantic_title,
             document.content,
             metadata,
         )
+
+
+def _string(value: object) -> str:
+    return value.strip() if isinstance(value, str) else ""
+
+
+def _strings(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return sorted(
+        {item.strip() for item in value if isinstance(item, str) and item.strip()}
+    )

@@ -145,8 +145,10 @@ def test_add_edit_move_out_and_move_back_pipeline(tmp_path: Path) -> None:
     assert state.checkpoint("exchange_notes") == "state-4"
 
     # Persist Exchange's mutated opaque state without reindexing when no items changed.
+    changed_sync_commands = list(commands)
     assert pipeline.sync().upserted == 0
     assert state.checkpoint("exchange_notes") == "state-5"
+    assert commands == changed_sync_commands
     assert commands[0] == [
         "qmd",
         "collection",
@@ -156,4 +158,8 @@ def test_add_edit_move_out_and_move_back_pipeline(tmp_path: Path) -> None:
         "test-kb",
     ]
     assert commands.count(["qmd", "update"]) == 4
+    assert commands.count(["qmd", "embed"]) == 4
     assert sum("collection" in command for command in commands) == 1
+    for index, command in enumerate(commands):
+        if command == ["qmd", "update"]:
+            assert commands[index + 1] == ["qmd", "embed"]

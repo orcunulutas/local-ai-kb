@@ -62,5 +62,6 @@ class SyncPipeline:
                 self._qmd.register()
                 self._state.set_setting(key, str(self._qmd.root))
             self._qmd.update()
+            self._qmd.embed()
         self._state.set_checkpoint(self._source_name, result.next_checkpoint)
         return SyncSummary(upserted, unpublished)

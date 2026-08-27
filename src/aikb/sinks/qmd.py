@@ -36,3 +36,6 @@ class QmdIndexer:
 
     def update(self) -> None:
         self._runner([self.executable, "update"])
+
+    def embed(self) -> None:
+        self._runner([self.executable, "embed"])
