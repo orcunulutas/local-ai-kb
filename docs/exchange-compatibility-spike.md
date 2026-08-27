@@ -25,24 +25,32 @@ The objective of this spike is to validate connectivity and data access from a L
 * EWS Endpoint accessible from the test environment (if performing live validation).
 
 ## Configuration
-Example setup in `config.yaml`:
+Example setup in `config.yaml` matching the overall system architecture:
+
 ```yaml
-exchange:
-  server: "mail.example.com"
-  email: "user@example.com"
-  username: "DOMAIN\\username"
-  auth_type: "NTLM" # Alternatively "Basic"
-  ca_cert_path: "/path/to/custom/ca.crt" # Optional
+sources:
+  exchange_notes:
+    endpoint: https://exchange.example.invalid/EWS/Exchange.asmx
+    server: exchange.example.invalid
+    email: user@example.invalid
+    username: user@example.invalid
+    auth_type: NTLM # NTLM or Basic
+    # ca_cert_path: /path/to/custom/ca.crt # Optional custom CA certificate path
+    # Supply secrets through the future secret provider/environment, not here.
+    password_env: AIKB_EXCHANGE_PASSWORD
+    checkpoint_key: exchange-notes
 ```
+
+**Note:** `endpoint` (mapped to `service_endpoint`) and `server` are alternatives for connection configuration. If both are specified, `endpoint` will take precedence in the spike configuration for determining the connection path.
 
 Do not commit credentials or local configuration to the repository.
 
 ## Running the Probe
 The compatibility spike probe can be run locally using the `tools/exchange_spike.py` script.
-First, set your password (or leave unset for an interactive prompt):
+First, set your password (or leave unset for an interactive prompt). The variable used for this is derived from `password_env` in the configuration (defaulting to `EXCHANGE_PASSWORD`):
 
 ```bash
-export EXCHANGE_PASSWORD="your_secure_password"
+export AIKB_EXCHANGE_PASSWORD="your_secure_password"
 ```
 
 To list all items in the `Notes/AI-KB` folder:

@@ -42,9 +42,10 @@ class MockFolder:
 
                 yield ("create", MockItem("id1", "ck1"))
                 yield ("update", MockItem("id2", "ck2"))
-                yield ("delete", "id3") # exchangelib yields an ItemId object or string for delete
+                # exchangelib yields an ItemId object or string for delete
+                yield ("delete", "id3")
 
-                # simulate side effect of updating folder.item_sync_state after iteration
+                # simulate side effect of updating folder.item_sync_state
                 folder.item_sync_state = "new_state_123"
 
         return MockSyncGenerator()
@@ -100,7 +101,7 @@ def test_get_ai_kb_folder_not_found(mock_account_cls, mock_config):
     client = ExchangeClient(mock_config)
     client.connect()
 
-    with pytest.raises(ExchangeClientError, match="AI-KB folder not found under Notes"):
+    with pytest.raises(ExchangeClientError, match="AI-KB folder not found"):
         client.get_ai_kb_folder()
 
 @patch("aikb.sources.exchange.client.Account")

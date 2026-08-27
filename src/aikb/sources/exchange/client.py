@@ -55,9 +55,10 @@ class ExchangeClient:
     def _setup_tls(self) -> None:
         """Configures TLS using custom CA if provided."""
         if self._config.ca_cert_path:
-            # Note: This affects global ssl context in Python which is what exchangelib uses by default
-            # In a full production scenario, we'd want to inject this more carefully into the transport.
-            # But for the spike, we'll set the environment variable that requests uses
+            # Note: This affects global ssl context in Python which is what
+            # exchangelib uses by default. In a full production scenario, we'd
+            # want to inject this more carefully into the transport.
+            # But for the spike, we'll set the environment variable that requests uses.
             os.environ["REQUESTS_CA_BUNDLE"] = self._config.ca_cert_path
 
     def connect(self) -> None:
@@ -70,9 +71,13 @@ class ExchangeClient:
         elif self._config.auth_type.lower() == "ntlm":
             auth_type = NTLM
         else:
-            raise ExchangeClientError(f"Unsupported auth_type: {self._config.auth_type}")
+            raise ExchangeClientError(
+                f"Unsupported auth_type: {self._config.auth_type}"
+            )
 
-        credentials = Credentials(username=self._config.username, password=self._config.password)
+        credentials = Credentials(
+            username=self._config.username, password=self._config.password
+        )
 
         config_kwargs = {
             "credentials": credentials,
@@ -85,7 +90,9 @@ class ExchangeClient:
         elif self._config.server:
             config_kwargs["server"] = self._config.server
         else:
-            raise ExchangeClientError("Either service_endpoint or server must be provided.")
+            raise ExchangeClientError(
+                "Either service_endpoint or server must be provided."
+            )
 
         config = Configuration(**config_kwargs)
 
@@ -122,7 +129,9 @@ class ExchangeClient:
         except ExchangeClientError:
             raise
         except Exception as e:
-            raise ExchangeClientError(f"Error accessing child folders of Notes: {e}") from e
+            raise ExchangeClientError(
+                f"Error accessing child folders of Notes: {e}"
+            ) from e
 
     def enumerate_items(self, folder: Folder) -> list[dict[str, Any]]:
         """
@@ -137,7 +146,8 @@ class ExchangeClient:
                         "changekey": getattr(item, "changekey", None),
                         "subject": getattr(item, "subject", None),
                         # exchangelib Note class often uses text_body or body
-                        "body": getattr(item, "text_body", None) or getattr(item, "body", None),
+                        "body": getattr(item, "text_body", None)
+                        or getattr(item, "body", None),
                         "datetime_created": getattr(item, "datetime_created", None),
                         "last_modified_time": getattr(item, "last_modified_time", None),
                         "item_class": getattr(item, "item_class", None),
@@ -147,7 +157,9 @@ class ExchangeClient:
             raise ExchangeClientError(f"Error enumerating items: {e}") from e
         return items_data
 
-    def sync_items(self, folder: Folder, sync_state: str | None = None) -> SyncStateResult:
+    def sync_items(
+        self, folder: Folder, sync_state: str | None = None
+    ) -> SyncStateResult:
         """
         Performs incremental synchronization using SyncFolderItems.
         Returns the new sync state and a list of changes (create, update, delete).
@@ -170,17 +182,20 @@ class ExchangeClient:
                         )
                     )
                 elif change_type == "delete":
-                    # For delete, exchangelib yields an ItemId object which has an 'id' attribute
+                    # For delete, exchangelib yields an ItemId object
                     item_id_val = getattr(item, "id", str(item))
                     changes.append(
                         ExchangeItemChange(
                             item_id=item_id_val,
-                            change_key=getattr(item, "changekey", "") if hasattr(item, "changekey") else "",
+                            change_key=getattr(item, "changekey", "")
+                            if hasattr(item, "changekey")
+                            else "",
                             change_type="delete",
                         )
                     )
 
-            # Retrieve the new sync state directly from the folder API after consuming the generator
+            # Retrieve the new sync state directly from the folder API
+            # after consuming the generator
             new_sync_state = folder.item_sync_state
             return SyncStateResult(sync_state=new_sync_state, changes=changes)
 
@@ -207,7 +222,8 @@ class ExchangeClient:
                         "id": getattr(item, "id", None),
                         "changekey": getattr(item, "changekey", None),
                         "subject": getattr(item, "subject", None),
-                        "body": getattr(item, "text_body", None) or getattr(item, "body", None),
+                        "body": getattr(item, "text_body", None)
+                        or getattr(item, "body", None),
                         "datetime_created": getattr(item, "datetime_created", None),
                         "last_modified_time": getattr(item, "last_modified_time", None),
                         "item_class": getattr(item, "item_class", None),

@@ -23,8 +23,11 @@ def load_config(config_path: str) -> dict[str, Any]:
         return dict(yaml.safe_load(f))
 
 
-def _get_password() -> str:
-    password = os.environ.get("EXCHANGE_PASSWORD")
+def _get_password(env_var_name: str = "EXCHANGE_PASSWORD") -> str:
+    password = os.environ.get(env_var_name)
+    if not password and env_var_name != "EXCHANGE_PASSWORD":
+        password = os.environ.get("EXCHANGE_PASSWORD")
+
     if not password:
         import getpass
 
@@ -47,12 +50,13 @@ def _setup_client(config_path: str) -> ExchangeClient:
     username = exchange_cfg.get("username")
     auth_type = exchange_cfg.get("auth_type", "NTLM")
     ca_cert_path = exchange_cfg.get("ca_cert_path")
+    password_env = exchange_cfg.get("password_env", "EXCHANGE_PASSWORD")
 
     if not all([email, username]) or not (endpoint or server):
-        print("Error: Missing required config (email, username, and either endpoint or server).")
+        print("Error: Missing required config (email, username, endpoint/server).")
         sys.exit(1)
 
-    password = _get_password()
+    password = _get_password(password_env)
 
     config = ExchangeConfig(
         server=server,
