@@ -14,7 +14,11 @@ pipeline:
 sources:
   exchange_notes:
     endpoint: https://exchange.example.invalid/EWS/Exchange.asmx
+    server: exchange.example.invalid
+    email: user@example.invalid
     username: user@example.invalid
+    auth_type: NTLM # NTLM or Basic
+    # ca_cert_path: /path/to/custom/ca.crt # Optional custom CA certificate path
     # Supply secrets through the future secret provider/environment, not here.
     password_env: AIKB_EXCHANGE_PASSWORD
     checkpoint_key: exchange-notes
@@ -29,4 +33,3 @@ sinks:
   qmd:
     executable: qmd
     collection: local-ai-kb
-
